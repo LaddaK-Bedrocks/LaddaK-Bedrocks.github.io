@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Dashboard — ระบบบริหารจัดการภัยพิบัติน้ำท่วม ต.ในเวียง</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f8f5; --card:#ffffff; --ink:#1d2433; --muted:#6b7487;
+  --line:#e7eaf2;
+  --c1:#1b8a44; --c2:#4db07a; --c3:#f0a92e; --c4:#0f9a8f; --c5:#2f6b4f; --c6:#8fcfa8;
+  --pos:#16a34a; --neg:#dc2626;
+  --radius:16px; --gap:18px;
+  --shadow:0 4px 20px rgba(29,36,51,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'IBM Plex Sans Thai',-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1360px;margin:0 auto;padding:26px 24px 40px}
+.hdr{background:linear-gradient(120deg,#0d5230 0%,#1b8a44 60%,#3aa968 100%);color:#fff;border-radius:var(--radius);padding:26px 30px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:var(--gap)}
+.hdr h1{font-size:22px;font-weight:700;letter-spacing:.2px}
+.hdr .sub{font-size:13.5px;opacity:.85;margin-top:3px;font-weight:300}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11.5px;opacity:.8;letter-spacing:.4px}
+.fg select{padding:8px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:13.5px;font-family:inherit;min-width:170px;cursor:pointer}
+.fg select option{background:#0d5230;color:#fff}
+.btn-upload{padding:8px 16px;border:1px solid rgba(255,255,255,.5);border-radius:10px;background:rgba(255,255,255,.92);color:#0d5230;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:.15s}
+.btn-upload:hover{background:#fff}
+.src-note{font-size:11.5px;opacity:.75;margin-top:5px;font-weight:300;text-align:right;width:100%}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--gap);margin-bottom:var(--gap)}
+.kpi{background:var(--card);border-radius:var(--radius);padding:18px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:4px;background:var(--accent,var(--c1))}
+.kpi .lb{font-size:12.5px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:30px;font-weight:700;margin-top:2px;letter-spacing:-.5px}
+.kpi .s{font-size:12px;color:var(--muted);font-weight:300}
+.row{display:grid;gap:var(--gap);margin-bottom:var(--gap)}
+.row.two{grid-template-columns:1.25fr 1fr}
+.card{background:var(--card);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow)}
+.card h3{font-size:14.5px;font-weight:600;margin-bottom:2px}
+.card .hint{font-size:12px;color:var(--muted);font-weight:300;margin-bottom:14px}
+.chart-box{position:relative;height:290px}
+.chart-box.tall{height:330px}
+.chart-box.short{height:250px}
+.hm{overflow-x:auto}
+table.heat{border-collapse:collapse;width:100%;font-size:13px}
+table.heat th{font-size:12px;color:var(--muted);font-weight:600;padding:8px 10px;text-align:center;border-bottom:2px solid var(--line);white-space:nowrap}
+table.heat th:first-child{text-align:left}
+table.heat td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center}
+table.heat td:first-child{text-align:left;font-weight:500;white-space:nowrap}
+table.heat .cell{display:inline-block;min-width:34px;padding:3px 8px;border-radius:8px;font-weight:600;font-size:12.5px}
+.search{padding:8px 14px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;font-family:inherit;width:260px;color:var(--ink)}
+.tbl-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.tbl-wrap{overflow-x:auto;max-height:430px;overflow-y:auto}
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data thead th{position:sticky;top:0;background:var(--card);text-align:left;padding:9px 12px;border-bottom:2px solid var(--line);color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;white-space:nowrap}
+table.data tbody td{padding:8px 12px;border-bottom:1px solid var(--line)}
+table.data tbody tr:hover{background:#f5faf6}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
+.badge.admin{background:#e5f5eb;color:#17753d}
+.badge.staff{background:#eaf6ef;color:#3c8a5f}
+.badge.none{background:#f1f2f6;color:#8a92a6}
+.chip{display:inline-block;background:#f2f8f4;border:1px solid var(--line);color:#4a5268;border-radius:8px;padding:1px 8px;font-size:11.5px;margin:1px 2px 1px 0;white-space:nowrap}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{padding:6px 16px;border:1px solid var(--line);border-radius:99px;background:#fff;color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:.15s}
+.tabs button.on{background:var(--c1);border-color:var(--c1);color:#fff}
+.ftr{text-align:center;color:var(--muted);font-size:12px;margin-top:8px;font-weight:300}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0d5230;color:#fff;padding:10px 22px;border-radius:12px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.3s}
+.toast.show{opacity:1}
+@media(max-width:980px){.row.two{grid-template-columns:1fr}}
+@media print{body{background:#fff}.filters{display:none}.card,.kpi{box-shadow:none;border:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hdr">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+    <div style="background:#fff;border-radius:14px;padding:6px 14px 6px 8px;display:flex;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+      <svg viewBox="0 0 205 60" width="150" height="46" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="NANTH นัยน์นันท์">
+        <g transform="translate(30,30)">
+          <path d="M -21 -10 A 24 24 0 1 1 -14 17" fill="none" stroke="#8fcfa8" stroke-width="7" stroke-linecap="round"/>
+          <path d="M -14 17 Q -20 26 -27 27" fill="none" stroke="#8fcfa8" stroke-width="7" stroke-linecap="round"/>
+          <circle r="12.5" fill="#1b8a44"/>
+        </g>
+        <text x="62" y="28" font-family="Arial, sans-serif" font-weight="800" font-size="25" letter-spacing="3" fill="#3a4148">NANTH</text>
+        <text x="63" y="50" font-family="'IBM Plex Sans Thai', sans-serif" font-weight="500" font-size="15" fill="#1b8a44">นัยน์นันท์</text>
+      </svg>
+    </div>
+    <div>
+      <h1>Dashboard ผู้ใช้งานระบบ</h1>
+      <div class="sub">โครงการพัฒนาระบบบริหารจัดการภัยพิบัติน้ำท่วม ต. ในเวียง อ. เมืองน่าน · ข้อมูล ณ <span id="data-date">–</span></div>
+    </div>
+    </div>
+    <div class="filters">
+      <div class="fg"><label>กลุ่มผู้ใช้</label>
+        <select id="f-group" onchange="app.apply()">
+          <option value="customer">เฉพาะผู้ใช้ของลูกค้า</option>
+          <option value="all">ทั้งหมด (รวมทีม Support)</option>
+          <option value="internal">เฉพาะทีมภายใน (Bedrock/KBANK)</option>
+        </select></div>
+      <div class="fg"><label>หน่วยงาน</label>
+        <select id="f-dept" onchange="app.apply()"><option value="all">ทุกหน่วยงาน</option></select></div>
+      <div class="fg"><label>&nbsp;</label>
+        <button class="btn-upload" onclick="document.getElementById('csvfile').click()">⭯ อัปเดตข้อมูล (Excel)</button>
+        <input type="file" id="csvfile" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadDataFile(this.files[0])"></div>
+      <div class="src-note" id="src-note">ยังไม่ได้โหลดข้อมูล</div>
+    </div>
+  </header>
+
+  <div id="empty-state" class="card" style="text-align:center;padding:70px 30px">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1b8a44" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:14px">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <div style="font-size:19px;font-weight:700;margin-bottom:6px">เริ่มต้นด้วยการอัปโหลดไฟล์ข้อมูลผู้ใช้</div>
+    <div style="font-size:13.5px;color:var(--muted);font-weight:300;margin-bottom:22px">
+      เลือกไฟล์ Excel (.xlsx) ที่ export จากระบบ เช่น users-export-xxxxxxxx.xlsx<br>ข้อมูลจะถูกประมวลผลในเครื่องของคุณเท่านั้น ไม่มีการส่งขึ้นอินเทอร์เน็ต</div>
+    <button class="btn-upload" style="background:var(--c1);color:#fff;border:none;padding:12px 28px;font-size:15px;border-radius:12px"
+      onclick="document.getElementById('csvfile').click()">เลือกไฟล์ Excel…</button>
+  </div>
+
+  <div id="content" style="display:none">
+  <section class="kpis">
+    <div class="kpi" style="--accent:var(--c1)"><div class="lb">ผู้ใช้ทั้งหมด</div><div class="v" id="k-users">–</div><div class="s" id="k-users-s"></div></div>
+    <div class="kpi" style="--accent:var(--c2)"><div class="lb">หน่วยงาน</div><div class="v" id="k-depts">–</div><div class="s">ที่มีผู้ใช้ในระบบ</div></div>
+    <div class="kpi" style="--accent:var(--c5)"><div class="lb">มีสิทธิ์ใช้ระบบแล้ว</div><div class="v" id="k-active">–</div><div class="s" id="k-active-s"></div></div>
+    <div class="kpi" style="--accent:var(--c3)"><div class="lb">ยังไม่ได้รับสิทธิ์ระบบใด</div><div class="v" id="k-none">–</div><div class="s">รอ provision / ติดตามต่อ</div></div>
+    <div class="kpi" style="--accent:var(--c4)"><div class="lb">สัดส่วน ADMIN</div><div class="v" id="k-admin">–</div><div class="s" id="k-admin-s"></div></div>
+  </section>
+
+  <div class="row two">
+    <div class="card">
+      <h3>จำนวนผู้ใช้ที่มีสิทธิ์ในแต่ละระบบ (Adoption)</h3>
+      <div class="hint" id="hint-sys">ระบบที่เปิดใช้งานในโครงการ</div>
+      <div class="chart-box"><canvas id="ch-sys"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>ระดับสิทธิ์ภายในแต่ละระบบ</h3>
+      <div class="hint">โครงสร้าง Admin / เจ้าหน้าที่ / User — ตรวจสอบ governance ของสิทธิ์</div>
+      <div class="chart-box"><canvas id="ch-perm"></canvas></div>
+    </div>
+  </div>
+
+  <div class="row two">
+    <div class="card">
+      <h3>ผู้ใช้จำแนกตามหน่วยงาน</h3>
+      <div class="hint">การกระจายตัวของผู้ใช้ในแต่ละหน่วยงาน</div>
+      <div class="chart-box tall"><canvas id="ch-dept"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="row" style="grid-template-columns:1fr;gap:0">
+        <div>
+          <h3>สิทธิ์ในระบบเบื้องต้น (Role)</h3>
+          <div class="hint">ADMIN เทียบกับ STAFF</div>
+          <div class="chart-box short"><canvas id="ch-role"></canvas></div>
+        </div>
+        <div style="margin-top:16px">
+          <h3>จำนวนระบบต่อผู้ใช้ 1 คน</h3>
+          <div class="hint">0 ระบบ = บัญชีที่ยังไม่ถูกเปิดสิทธิ์</div>
+          <div class="chart-box short"><canvas id="ch-nsys"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h3>Heatmap: หน่วยงาน × ระบบ</h3>
+      <div class="hint">จำนวนผู้ใช้ที่มีสิทธิ์ แยกตามหน่วยงานและระบบ — ช่องว่างคือโอกาสขยายการใช้งาน</div>
+      <div class="hm" id="heatmap"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h3>หน่วยงาน × ระดับสิทธิ์ ในแต่ละระบบ</h3>
+      <div class="hint">เลือกระบบเพื่อดูว่าหน่วยงานใดได้รับสิทธิ์ระดับใด (Admin / เจ้าหน้าที่ / User)</div>
+      <div class="tabs" id="sys-tabs"></div>
+      <div class="chart-box tall"><canvas id="ch-deptperm"></canvas></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <div class="tbl-head">
+        <div><h3>รายชื่อผู้ใช้</h3><div class="hint" style="margin:0">คลิกหัวตารางเพื่อเรียงลำดับ</div></div>
+        <input class="search" id="tbl-search" placeholder="ค้นหาชื่อ / หน่วยงาน / ตำแหน่ง…" oninput="app.renderTable()">
+      </div>
+      <div class="tbl-wrap" id="tbl"></div>
+    </div>
+  </div>
+
+  </div><!-- /content -->
+
+  <div class="ftr">Dashboard เป็นไฟล์เดียวเปิดได้โดยไม่ต้องติดตั้งโปรแกรม · อัปเดตข้อมูลได้โดยกดปุ่ม "อัปเดตข้อมูล (Excel)" แล้วเลือกไฟล์ export ผู้ใช้ (.xlsx) เวอร์ชันล่าสุด</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const PALETTE = ['#1b8a44','#4db07a','#0f9a8f','#f0a92e','#2f6b4f','#8fcfa8','#6bbf59','#0d5230'];
+let SYSTEMS = [];
+Chart.defaults.font.family = "'IBM Plex Sans Thai', sans-serif";
+Chart.defaults.color = '#6b7487';
+
+/* ---------- CSV loading ---------- */
+// map system columns by keyword in header (order matters)
+const SYS_RULES = [
+  ['กิจการประปา','SU KTB'], ['แผนที่ภาษี','Smart Tax'], ['สารบรรณ','e-Saraban'],
+  ['ศูนย์บัญชาการ','CDDP'], ['เกาะสมุย','e-Booking Samui'], ['ขออนุญาต','Smart License'],
+  ['MyKet','MyKet'], ['จัดการเอกสาร','e-Doc'], ['งานช่าง','e-Fix'],
+  ['ฐานข้อมูลบุคคล','e-HR'], ['Smart Health Dashboard','Smart Health Dashboard'],
+  ['สุขภาพอัจฉริยะ','Smart Health'], ['แจ้งเหตุ','BellMe'], ['กระบี่','e-Booking Krabi'],
+  ['บริหารทรัพย์สิน','SAM'], ['เบดร็อค','e-Booking Train'], ['พัทลุง','e-Booking Pat'],
+  ['ค่าธรรมเนียม','SU']
+];
+function classifyHeader(h){
+  h = h.trim();
+  if (!h) return null;
+  if (/^line\s*oa$/i.test(h)) return {type:'line'};
+  for (const [kw, short] of SYS_RULES) if (h.includes(kw)) return {type:'sys', short};
+  return null;
+}
+function parseCSV(text){
+  const rows=[]; let row=[], field='', inQ=false;
+  for (let i=0;i<text.length;i++){
+    const c=text[i];
+    if (inQ){
+      if (c==='"'){ if (text[i+1]==='"'){field+='"';i++;} else inQ=false; }
+      else field+=c;
+    } else {
+      if (c==='"') inQ=true;
+      else if (c===','){ row.push(field); field=''; }
+      else if (c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if (c!=='\r') field+=c;
+    }
+  }
+  if (field!=='' || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function rowsToUsers(rows){
+  rows = rows.filter(r=>r && r.some(c=>String(c??'').trim()!==''));
+  const header = rows[0].map(h=>String(h??'').trim());
+  const idx = {};
+  ['No','Prefix','First name','Last name','Email','Tel','Role','Organization code','Department','Position']
+    .forEach(n=>{ idx[n] = header.findIndex(h=>h.toLowerCase()===n.toLowerCase()); });
+  if (idx['First name']<0 || idx['Department']<0) throw new Error('ไม่พบคอลัมน์ First name / Department — กรุณาตรวจสอบว่าเป็นไฟล์ export ผู้ใช้รูปแบบเดิม');
+  const sysCols=[]; let lineCol=-1;
+  header.forEach((h,i)=>{
+    const c=classifyHeader(h);
+    if (!c) return;
+    if (c.type==='line') lineCol=i;
+    else sysCols.push([i,c.short]);
+  });
+  const g=(r,k)=> idx[k]>=0 ? String(r[idx[k]]??'').trim() : '';
+  return rows.slice(1).map(r=>{
+    const dept=g(r,'Department'), email=g(r,'Email');
+    const systems={};
+    sysCols.forEach(([i,s])=>{ const v=String(r[i]??'').trim(); if(v) systems[s]=v; });
+    return {
+      no:g(r,'No'), name:(g(r,'First name')+' '+g(r,'Last name')).trim(),
+      email, dept: dept||'ไม่ระบุ', pos:g(r,'Position')||'ไม่ระบุ',
+      role:(g(r,'Role')||'N/A').toUpperCase(),
+      internal: ['Bedrock','KBANK'].includes(dept) || /bedrockanalytics|kasikornbank/i.test(email),
+      systems, nsys:Object.keys(systems).length
+    };
+  });
+}
+function decodeCSV(buf){
+  try { return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+  catch(e){ return new TextDecoder('windows-874').decode(buf); }
+}
+async function loadDataFile(file){
+  if (!file) return;
+  try {
+    const buf = await file.arrayBuffer();
+    let rows;
+    if (/\.csv$/i.test(file.name)) {
+      rows = parseCSV(decodeCSV(buf));
+    } else {
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+    }
+    const users = rowsToUsers(rows);
+    if (!users.length) throw new Error('ไม่พบข้อมูลผู้ใช้ในไฟล์');
+    document.getElementById('empty-state').style.display='none';
+    document.getElementById('content').style.display='';
+    app.setData(users);
+    document.getElementById('src-note').textContent = 'แหล่งข้อมูล: ' + file.name + ' (' + users.length + ' บัญชี)';
+    document.getElementById('data-date').textContent = new Date().toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
+    toast('อัปเดตข้อมูลแล้ว: ' + users.length + ' บัญชีผู้ใช้');
+  } catch(err){
+    toast('อ่านไฟล์ไม่สำเร็จ: ' + err.message, true);
+  }
+  document.getElementById('csvfile').value='';
+}
+function toast(msg, isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=isErr?'#b3261e':'#0d5230';
+  t.classList.add('show'); clearTimeout(t._h);
+  t._h=setTimeout(()=>t.classList.remove('show'), 4000);
+}
+
+/* ---------- helpers ---------- */
+function permLevel(v){
+  const s = v.toLowerCase();
+  if (s.includes('admin') || s.includes('master')) return 'Admin';
+  if (s.includes('staff') || v.includes('เจ้าหน้าที่')) return 'เจ้าหน้าที่/Staff';
+  return 'User';
+}
+function computeSystems(users){
+  const c={};
+  users.forEach(u=>Object.keys(u.systems).forEach(s=>c[s]=(c[s]||0)+1));
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+}
+
+/* ---------- dashboard ---------- */
+class App {
+  constructor(){
+    this.charts = {};
+    this.sort = {col:'no', dir:'asc'};
+    this.users = null;
+  }
+  setData(users){
+    this.users = users;
+    SYSTEMS = computeSystems(users);
+    if (!SYSTEMS.includes(this.selSys)) this.selSys = SYSTEMS[0] || null;
+    this.renderTabs();
+    document.getElementById('hint-sys').textContent =
+      SYSTEMS.length ? 'โครงการนี้เปิดใช้งาน '+SYSTEMS.length+' ระบบ ได้แก่ '+SYSTEMS.join(', ') : 'ยังไม่มีระบบที่เปิดใช้งาน';
+    const sel = document.getElementById('f-dept');
+    sel.innerHTML = '<option value="all">ทุกหน่วยงาน</option>';
+    [...new Set(users.map(u=>u.dept))].sort((a,b)=>a.localeCompare(b,'th')).forEach(d=>{
+      const o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o);
+    });
+    this.apply();
+  }
+  data(){
+    const g = document.getElementById('f-group').value;
+    const d = document.getElementById('f-dept').value;
+    return this.users.filter(u=>{
+      if (g==='customer' && u.internal) return false;
+      if (g==='internal' && !u.internal) return false;
+      if (d!=='all' && u.dept!==d) return false;
+      return true;
+    });
+  }
+  apply(){
+    if (!this.users) return;
+    const d = this.data();
+    this.cur = d;
+    this.kpis(d); this.charts_(d); this.deptPerm(d); this.heatmap(d); this.renderTable();
+  }
+  renderTabs(){
+    const box=document.getElementById('sys-tabs');
+    box.innerHTML='';
+    SYSTEMS.forEach(s=>{
+      const btn=document.createElement('button');
+      btn.textContent=s;
+      btn.className = s===this.selSys ? 'on':'';
+      btn.onclick=()=>{ this.selSys=s; this.renderTabs(); this.deptPerm(this.cur); };
+      box.appendChild(btn);
+    });
+  }
+  deptPerm(d){
+    const sys=this.selSys;
+    const levels=['Admin','เจ้าหน้าที่/Staff','User'];
+    const lvColors=['#1b8a44','#6bc493','#f0a92e'];
+    const has = d.filter(u=>sys && u.systems[sys]);
+    const dc={}; has.forEach(u=>dc[u.dept]=(dc[u.dept]||0)+1);
+    const depts=Object.entries(dc).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+    const ds=levels.map((lv,i)=>({label:lv,
+      data:depts.map(dep=> has.filter(u=>u.dept===dep && permLevel(u.systems[sys])===lv).length),
+      backgroundColor:lvColors[i]+'CC',borderRadius:6,maxBarThickness:26}));
+    this.mk('ch-deptperm',{type:'bar',data:{labels:depts,datasets:ds},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:16}},
+      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.x} คน`}}},
+      scales:{x:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:'#eef0f6'}},
+              y:{stacked:true,grid:{display:false},ticks:{autoSkip:false,font:{size:11.5}}}}}});
+  }
+  kpis(d){
+    const n=d.length, act=d.filter(u=>u.nsys>0).length, adm=d.filter(u=>u.role==='ADMIN').length;
+    const depts=new Set(d.map(u=>u.dept)).size;
+    const pct=(x)=> n? Math.round(x/n*100):0;
+    k('k-users', n.toLocaleString()); k('k-users-s', 'บัญชีตามเงื่อนไขที่เลือก');
+    k('k-depts', depts);
+    k('k-active', act.toLocaleString()); k('k-active-s', pct(act)+'% ของผู้ใช้ที่เลือก');
+    k('k-none', (n-act).toLocaleString());
+    k('k-admin', pct(adm)+'%'); k('k-admin-s', adm.toLocaleString()+' คน');
+    function k(id,v){document.getElementById(id).textContent=v;}
+  }
+  mk(id, cfg){
+    if(this.charts[id]) this.charts[id].destroy();
+    this.charts[id]=new Chart(document.getElementById(id), cfg);
+  }
+  charts_(d){
+    const sysColors = SYSTEMS.map((_,i)=>PALETTE[i%PALETTE.length]);
+    const sysCnt = SYSTEMS.map(s=> d.filter(u=>u.systems[s]).length);
+    this.mk('ch-sys',{type:'bar',data:{labels:SYSTEMS,datasets:[{data:sysCnt,
+      backgroundColor:sysColors.map(c=>c+'CC'),borderRadius:8,maxBarThickness:70}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef0f6'}},x:{grid:{display:false}}}}});
+    const levels=['Admin','เจ้าหน้าที่/Staff','User'];
+    const lvColors=['#1b8a44','#6bc493','#f0a92e'];
+    const ds = levels.map((lv,i)=>({label:lv,
+      data:SYSTEMS.map(s=> d.filter(u=>u.systems[s] && permLevel(u.systems[s])===lv).length),
+      backgroundColor:lvColors[i]+'CC',borderRadius:6,maxBarThickness:70}));
+    this.mk('ch-perm',{type:'bar',data:{labels:SYSTEMS,datasets:ds},
+      options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{usePointStyle:true,padding:16}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:'#eef0f6'}}}}});
+    const dc={}; d.forEach(u=>dc[u.dept]=(dc[u.dept]||0)+1);
+    const de=Object.entries(dc).sort((a,b)=>b[1]-a[1]);
+    this.mk('ch-dept',{type:'bar',data:{labels:de.map(e=>e[0]),datasets:[{data:de.map(e=>e[1]),
+      backgroundColor:de.map((_,i)=>PALETTE[i%PALETTE.length]+'CC'),borderRadius:6,maxBarThickness:26}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef0f6'}},y:{grid:{display:false},ticks:{autoSkip:false,font:{size:11.5}}}}}});
+    const adm=d.filter(u=>u.role==='ADMIN').length;
+    this.mk('ch-role',{type:'doughnut',data:{labels:['ADMIN','STAFF'],datasets:[{data:[adm,d.length-adm],
+      backgroundColor:['#1b8a44CC','#8fcfa8CC'],borderColor:'#fff',borderWidth:3}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,padding:14}},
+      tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0);return ` ${c.label}: ${c.parsed} คน (${t?(c.parsed/t*100).toFixed(0):0}%)`;}}}}}});
+    const maxN = Math.max(3, ...d.map(u=>u.nsys));
+    const labels=[], bins=[], cols=[];
+    for(let i=0;i<=maxN;i++){ labels.push(i+' ระบบ'); bins.push(d.filter(u=>u.nsys===i).length);
+      cols.push(i===0?'#f0a92eCC':PALETTE[(i-1)%PALETTE.length]+'CC'); }
+    this.mk('ch-nsys',{type:'bar',data:{labels,datasets:[{data:bins,backgroundColor:cols,borderRadius:8,maxBarThickness:56}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef0f6'}},x:{grid:{display:false}}}}});
+  }
+  heatmap(d){
+    const dc={}; d.forEach(u=>dc[u.dept]=(dc[u.dept]||0)+1);
+    const depts=Object.entries(dc).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+    let max=1;
+    const m=depts.map(dep=> SYSTEMS.map(s=>{
+      const c=d.filter(u=>u.dept===dep && u.systems[s]).length; max=Math.max(max,c); return c;}));
+    let h='<table class="heat"><thead><tr><th>หน่วยงาน</th>'+SYSTEMS.map(s=>'<th>'+s+'</th>').join('')+'<th>ผู้ใช้รวม</th></tr></thead><tbody>';
+    depts.forEach((dep,i)=>{
+      h+='<tr><td>'+dep+'</td>';
+      m[i].forEach(c=>{
+        const a=c? (0.15+0.85*c/max):0;
+        const bg=c? `rgba(27,138,68,${a.toFixed(2)})`:'#f4f5f9';
+        const col=a>0.55?'#fff':'#3c4257';
+        h+=`<td><span class="cell" style="background:${bg};color:${col}">${c||'–'}</span></td>`;
+      });
+      h+='<td><b>'+dc[dep]+'</b></td></tr>';
+    });
+    h+='</tbody></table>';
+    document.getElementById('heatmap').innerHTML=h;
+  }
+  renderTable(){
+    const q=(document.getElementById('tbl-search').value||'').toLowerCase();
+    let rows=this.cur.filter(u=> !q || (u.name+' '+u.dept+' '+u.pos+' '+u.email).toLowerCase().includes(q));
+    const {col,dir}=this.sort;
+    rows=[...rows].sort((a,b)=>{
+      let x=a[col],y=b[col];
+      if(col==='no'){x=+x||0;y=+y||0;}
+      const c = x<y?-1:x>y?1:0;
+      return dir==='asc'?c:-c;
+    });
+    const cols=[['no','#'],['name','ชื่อ-สกุล'],['dept','หน่วยงาน'],['pos','ตำแหน่ง'],['role','Role'],['nsys','ระบบ'],['sys','สิทธิ์ระบบ']];
+    let h='<table class="data"><thead><tr>'+cols.map(c=>{
+      const ar=this.sort.col===c[0]?(this.sort.dir==='asc'?' ▲':' ▼'):'';
+      return `<th onclick="app.sortBy('${c[0]}')">${c[1]}${ar}</th>`;}).join('')+'</tr></thead><tbody>';
+    rows.forEach(u=>{
+      const chips=Object.entries(u.systems).map(([s,v])=>`<span class="chip">${s}: ${v}</span>`).join('')||'<span class="badge none">ยังไม่มีสิทธิ์</span>';
+      h+=`<tr><td>${u.no}</td><td>${u.name}</td><td>${u.dept}</td><td>${u.pos}</td>
+      <td><span class="badge ${u.role==='ADMIN'?'admin':'staff'}">${u.role}</span></td>
+      <td style="text-align:center">${u.nsys}</td><td>${chips}</td></tr>`;
+    });
+    h+='</tbody></table>';
+    document.getElementById('tbl').innerHTML=h;
+  }
+  sortBy(c){
+    if(c==='sys') c='nsys';
+    if(this.sort.col===c) this.sort.dir=this.sort.dir==='asc'?'desc':'asc';
+    else this.sort={col:c,dir:'asc'};
+    this.renderTable();
+  }
+}
+const app=new App();
+</script>
+</body>
+</html>
